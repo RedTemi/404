@@ -1,0 +1,6 @@
+config.json
+appconfig.json
+.idea
+
+# the app binary:
+main

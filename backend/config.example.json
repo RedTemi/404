@@ -1,0 +1,6 @@
+{
+  "database_url": "postgresql://postgres:postgres@localhost:5432/database",
+  "jwt_secret": "myawesomesecret",
+  "salt": "incrediblesalt",
+  "port": ":8080"
+}
