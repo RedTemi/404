@@ -9,6 +9,7 @@ import { useRoomStateStore } from "@/stores/room"
 import { ChangeEventHandler, MouseEventHandler, useRef, useState } from "react"
 import { useRouletteGameStore } from "@/stores/roulette"
 import { generateBetData } from "@/util/roulette"
+import ChipKeys from "../ChipKeys"
 
 export const RoomControlPanel = () => {
     const isBetsOpen = useRouletteGameStore((s) => s.isBetsOpen)
@@ -99,7 +100,22 @@ const PendingBetSection = () => {
         })
         reset()
     }
-
+    const handleChipKeyClick = (amount: number) => {
+        // this should automatically create a bet for that amount for the selected user in the active bet space, if one exists it should be added to the existing bet.
+        console.log(amount)
+        console.log(betSpace)
+        console.log(targetUser)
+        // simply increase the bet amount
+        if (targetUser == null) return
+        if (betSpace == null) return
+        console.log("sending bet")
+        sendMessage("place_bet", {
+            room_id: roomId,
+            target_id: targetUser.ID,
+            amount: amount,
+            ...generateBetData(betSpace),
+        })
+    }
     return (
         <Box>
             <Heading size="md" mt={4}>
@@ -112,6 +128,7 @@ const PendingBetSection = () => {
                 {betSpace ? <BetSpaceTag space={betSpace} /> : <Tag>??</Tag>}
                 <Text>&middot;</Text>
                 <EditBetButton />
+                <ChipKeys chipBet={handleChipKeyClick} />
                 <Box sx={{ fontVariantNumeric: "tabular-nums" }}>{formattedMoney}</Box>
             </HStack>
 

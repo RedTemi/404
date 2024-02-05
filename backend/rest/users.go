@@ -144,3 +144,29 @@ func (s *Server) getUsers(ctx fiber.Ctx) error {
 	}
 	return ctx.JSON(users)
 }
+
+// write the user to the deleted_users table
+// new function to copy user to deleted_users table takes user id as parameter
+
+func (s *Server) deleteUser(ctx fiber.Ctx) error {
+	userId := ctx.Params("id")
+	deletePermanently := ctx.Query("permanent") == "true"
+	// except if permanent is true, write the user to the deleted_users table
+	if !deletePermanently {
+		_, err := s.db.Exec("INSERT INTO deleted_users (memberid, username, password, first_name, last_name, permission, stateid, balance) SELECT memberid, username, password, first_name, last_name, permission, stateid, balance FROM users WHERE id = $1; DELETE FROM users WHERE id = $1;", userId)
+		if err != nil {
+			return err
+		}
+		return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+			"status": "success",
+		})
+	} else {
+		_, err := s.db.Exec("DELETE FROM users WHERE id = $1", userId)
+		if err != nil {
+			return err
+		}
+		return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+			"status": "success",
+		})
+	}
+}

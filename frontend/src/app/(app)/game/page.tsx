@@ -32,12 +32,14 @@ function GamePage() {
 
             <Flex gap={4} w="full">
                 <GameBoard flexShrink={0} h="full" w="full" />
-
+    
                 <Flex gap={4} flexDir="column" w="full">
                     {isCurrentUserDealer && <RoomControlPanel />}
                     <CurrentRoundInfo />
+   
                 </Flex>
             </Flex>
+            <div id="chipzone"></div>
         </Box>
     )
 }

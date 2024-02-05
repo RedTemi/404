@@ -597,6 +597,14 @@ func (g *Gateway) getWebSocket(conn *websocket.Conn) {
 			g.rooms[roomId] = room
 
 			// Send winnings to dealer & all players
+			// get dealer percentage from database enviroment as key dealer_percentage
+			dealerPercentage := 0.0
+			err = g.db.QueryRow("SELECT value FROM enviroment WHERE key = 'dealer_percentage'").Scan(&dealerPercentage)
+			// pay the dealer a percentage of the wagered sum
+			dealerWinnings := int64(0)
+			for _, bet := range room.Bets {
+				dealerWinnings += int64(float64(bet.Amount) * dealerPercentage)
+			}
 			room.Dealer.WriteJSON(fiber.Map{
 				"type": "winnings",
 				"roll": number,
