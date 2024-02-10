@@ -2,11 +2,10 @@ package rest
 
 import (
 	"database/sql"
+	"encoding/json"
 	"io"
 	"os"
 	"time"
-
-	"encoding/json"
 
 	the404 "github.com/404casino/backend"
 	"github.com/404casino/backend/models"
@@ -91,8 +90,21 @@ func (s *Server) Start() {
 	users.Get("/users/", s.getUsers, s.requireRoleMiddleware(the404.ADMIN))
 	users.Get("/:id", s.getOtherUser)
 	users.Patch("/:id", s.patchOtherUser, s.requireRoleMiddleware(the404.ADMIN))
-
+	users.Delete("/deleteUser/:id", s.deleteUser, s.requireRoleMiddleware(the404.ADMIN))
+	users.Patch("/banUser/:id", s.banUser, s.requireRoleMiddleware(the404.ADMIN))
+	users.Patch("/unbanUser/:id", s.unBanUser, s.requireRoleMiddleware(the404.ADMIN))
+	users.Patch("/approve/:id", s.approveUser, s.requireRoleMiddleware(the404.ADMIN))
+	users.Patch("/settings/dealerPercentage/:percentage", s.setDealerPercentage, s.requireRoleMiddleware(the404.ADMIN))
+	raffle := api.Group("/raffle", s.requireAuthMiddleware)
+	raffle.Post("/create", s.createRaffle, s.requireRoleMiddleware(the404.ADMIN))
+	raffle.Patch("/selectWinner/:id", s.selectRaffleWinner, s.requireRoleMiddleware(the404.ADMIN))
+	raffle.Patch("/purchaseTicket/:id/:quantity", s.purchaseTicket, s.requireRoleMiddleware(the404.MEMBER))
+	raffle.Get("/active", s.getCurrentRaffle)
 	app := api.Group("/app")
 	app.Get("/config", s.getAppConfig)
 	app.Patch("/config", s.patchAppConfig, s.requireAuthMiddleware, s.requireRoleMiddleware(the404.ADMIN))
+	settings := api.Group("/settings", s.requireAuthMiddleware, s.requireRoleMiddleware(the404.ADMIN))
+	settings.Get("/", s.getSettings)
+	settings.Patch("/", s.updateSettings)
+
 }

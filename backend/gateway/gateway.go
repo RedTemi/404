@@ -157,6 +157,20 @@ func (g *Gateway) getWebSocket(conn *websocket.Conn) {
 
 		// Room management
 		case "create_room":
+			// get value of max_rooms from environment table, then convert it to int
+			maxRooms := 2
+			err = g.db.QueryRow("SELECT value FROM environment WHERE key = 'max_rooms'").Scan(&maxRooms)
+			if err != nil {
+				log.Error().Err(err).Msg("Error getting max rooms")
+			}
+
+			if len(g.rooms) >= maxRooms {
+				sender.WriteJSON(fiber.Map{
+					"error": "Max rooms reached",
+				})
+				break typeSelector
+			}
+
 			id := g.rooms[int64(len(g.rooms)-1)].ID + 1 // lol
 			g.rooms[id] = models.Room{
 				ID:             id,
@@ -219,6 +233,16 @@ func (g *Gateway) getWebSocket(conn *websocket.Conn) {
 				}
 				break typeSelector
 			}
+			// Check if the user is already in the same room being requested, if so remove them from the room
+			if targetRoom, ok := g.rooms[int64(message["room_id"].(float64))]; ok {
+				for i, player := range targetRoom.Players {
+					if player.ID == target.ID {
+						targetRoom.Players = append(targetRoom.Players[:i], targetRoom.Players[i+1:]...)
+						g.rooms[targetRoom.ID] = targetRoom
+					}
+				}
+			}
+
 			for _, room := range g.rooms {
 				for _, player := range room.Players {
 					if player.ID == target.ID {
@@ -552,11 +576,27 @@ func (g *Gateway) getWebSocket(conn *websocket.Conn) {
 			COLOR_PAYOUT := int64(2)
 			DOZENS_PAYOUT := int64(12)
 
+			// defer dealerPercentage.Close()
+			totalpayout := int64(0)
+			totalbets := int64(0)
+
+			// Initialize the map with the struct as the value type
+			roundPayouts := make(map[int64]models.PayoutInfo)
+			index := 0
 			for _, bet := range room.Bets {
 				switch {
 				case bet.Number == number: // knew the number
 					payout := bet.Amount * EXACT_PAYOUT
 					winnings[bet.User] += payout
+					totalpayout += payout
+					totalbets += bet.Amount
+					roundPayouts[int64(index)] = models.PayoutInfo{
+						UserID: bet.User,
+						Bet:    bet.Amount,
+						Roll:   number,
+						Payout: payout,
+					}
+					index++
 					_, err := g.db.Exec("UPDATE users SET balance = balance + $1 WHERE id = $2", payout, bet.User)
 					if err != nil {
 						log.Error().Err(err).Msgf("Error awarding %d to winner %d", payout, bet.User)
@@ -564,13 +604,31 @@ func (g *Gateway) getWebSocket(conn *websocket.Conn) {
 				case bet.Color == number_color: // picked the right color
 					payout := bet.Amount * COLOR_PAYOUT
 					winnings[bet.User] += payout
+					totalpayout += payout
+					totalbets += bet.Amount
 					_, err := g.db.Exec("UPDATE users SET balance = balance + $1 WHERE id = $2", payout, bet.User)
 					if err != nil {
 						log.Error().Err(err).Msgf("Error awarding %d to winner %d", payout, bet.User)
 					}
+					roundPayouts[int64(index)] = models.PayoutInfo{
+						UserID: bet.User,
+						Bet:    bet.Amount,
+						Roll:   number,
+						Payout: payout,
+					}
+					index++
 				case bet.Class == models.DOZENS_ONE: // First dozen
 					payout := bet.Amount * DOZENS_PAYOUT
 					winnings[bet.User] += payout
+					totalpayout += payout
+					totalbets += bet.Amount
+					roundPayouts[int64(index)] = models.PayoutInfo{
+						UserID: bet.User,
+						Bet:    bet.Amount,
+						Roll:   number,
+						Payout: payout,
+					}
+					index++
 					_, err := g.db.Exec("UPDATE users SET balance = balance + $1 WHERE id = $2", payout, bet.User)
 					if err != nil {
 						log.Error().Err(err).Msgf("Error awarding %d to winner %d", payout, bet.User)
@@ -578,6 +636,15 @@ func (g *Gateway) getWebSocket(conn *websocket.Conn) {
 				case bet.Class == models.DOZENS_TWO: // Second dozen
 					payout := bet.Amount * DOZENS_PAYOUT
 					winnings[bet.User] += payout
+					totalpayout += payout
+					totalbets += bet.Amount
+					roundPayouts[int64(index)] = models.PayoutInfo{
+						UserID: bet.User,
+						Bet:    bet.Amount,
+						Roll:   number,
+						Payout: payout,
+					}
+					index++
 					_, err := g.db.Exec("UPDATE users SET balance = balance + $1 WHERE id = $2", payout, bet.User)
 					if err != nil {
 						log.Error().Err(err).Msgf("Error awarding %d to winner %d", payout, bet.User)
@@ -585,13 +652,67 @@ func (g *Gateway) getWebSocket(conn *websocket.Conn) {
 				case bet.Class == models.DOZENS_THREE: // Third dozen
 					payout := bet.Amount * DOZENS_PAYOUT
 					winnings[bet.User] += payout
+					totalpayout += payout
+					totalbets += bet.Amount
+					roundPayouts[int64(index)] = models.PayoutInfo{
+						UserID: bet.User,
+						Bet:    bet.Amount,
+						Roll:   number,
+						Payout: payout,
+					}
+					index++
 					_, err := g.db.Exec("UPDATE users SET balance = balance + $1 WHERE id = $2", payout, bet.User)
 					if err != nil {
 						log.Error().Err(err).Msgf("Error awarding %d to winner %d", payout, bet.User)
 					}
+				default:
+					// when the bet is not a winner, the amount is deducted
+					_, err := g.db.Exec("UPDATE users SET balance = balance - $1 WHERE id = $2", bet.Amount, bet.User)
+					if err != nil {
+						log.Error().Err(err).Msgf("Error deducting %d from loser %d", bet.Amount, bet.User)
+					}
+					for _, player := range room.Players {
+						if player.ID == bet.User {
+							player.Balance -= bet.Amount
+						}
+					}
+
 				}
 			}
 
+			roundPayoutsJSON, err := json.Marshal(roundPayouts)
+			if err != nil {
+				log.Error().Err(err).Msg("Error storing round data")
+			}
+
+			betsJSON, err := json.Marshal(room.Bets)
+			if err != nil {
+				log.Error().Err(err).Msg("Error storing round data")
+
+			}
+
+			usersJSON, err := json.Marshal(room.Players)
+			if err != nil {
+				log.Error().Err(err).Msg("Error storing round data")
+
+			}
+			if err != nil {
+				log.Error().Err(err).Msg("Error storing round data")
+			}
+
+			_, err = g.db.Exec("INSERT INTO round_data (room_id, dealer_id, round_profit,round_payout, round_payouts, bets, users,round_number) VALUES ($1, $2, $3, $4, $5, $6, $7,$8)",
+				room.ID, room.Dealer.ID, totalbets, totalpayout, roundPayoutsJSON, betsJSON, usersJSON, number)
+			if err != nil {
+				log.Error().Err(err).Msg("Error storing round data")
+			}
+
+			if err != nil {
+				log.Error().Err(err).Msg("Error storing round data")
+				sender.WriteJSON(fiber.Map{
+					"error": "Failed to store round data",
+				})
+				break typeSelector
+			}
 			// Mutate the room & save
 			room.IsRolled = true
 			g.rooms[roomId] = room
@@ -600,10 +721,18 @@ func (g *Gateway) getWebSocket(conn *websocket.Conn) {
 			// get dealer percentage from database enviroment as key dealer_percentage
 			dealerPercentage := 0.0
 			err = g.db.QueryRow("SELECT value FROM enviroment WHERE key = 'dealer_percentage'").Scan(&dealerPercentage)
+			if err != nil {
+				log.Error().Err(err).Msg("Error getting dealer percentage")
+			}
 			// pay the dealer a percentage of the wagered sum
 			dealerWinnings := int64(0)
 			for _, bet := range room.Bets {
-				dealerWinnings += int64(float64(bet.Amount) * dealerPercentage)
+				dealerWinnings += int64(float64(bet.Amount) * (dealerPercentage / 100))
+				_, err := g.db.Exec("UPDATE users SET balance = balance + $1 WHERE id = $2", dealerWinnings, room.Dealer.ID)
+				if err != nil {
+					log.Error().Err(err).Msgf("Error awarding %d to dealer %d", dealerWinnings, room.Dealer.ID)
+				}
+
 			}
 			room.Dealer.WriteJSON(fiber.Map{
 				"type": "winnings",

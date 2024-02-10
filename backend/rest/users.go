@@ -145,12 +145,49 @@ func (s *Server) getUsers(ctx fiber.Ctx) error {
 	return ctx.JSON(users)
 }
 
+func (s *Server) banUser(ctx fiber.Ctx) error {
+	userId := ctx.Params("id")
+	// include banned in the permissions for the user
+	_, err := s.db.Exec("UPDATE users SET permision = permission || 'BANNED' WHERE id = $1;", userId)
+	if err != nil {
+		return err
+	}
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+	})
+}
+
+func (s *Server) unBanUser(ctx fiber.Ctx) error {
+	userId := ctx.Params("id")
+	// remove banned from the permissions for the user
+	_, err := s.db.Exec("UPDATE users SET permision = array_remove(permission, 'BANNED') WHERE id = $1 ", userId)
+	if err != nil {
+		return err
+	}
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+	})
+}
+
+// add new function to switch user permission from pending to MEMBER
+func (s *Server) approveUser(ctx fiber.Ctx) error {
+	userId := ctx.Params("id")
+	// remove pending from the permissions for the user
+	_, err := s.db.Exec(`UPDATE users SET permission = ARRAY_APPEND( array_remove(permission, 'PENDING'), 'MEMBER') WHERE id = $1`, userId)
+	if err != nil {
+		return err
+	}
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+	})
+}
+
 // write the user to the deleted_users table
 // new function to copy user to deleted_users table takes user id as parameter
 
 func (s *Server) deleteUser(ctx fiber.Ctx) error {
 	userId := ctx.Params("id")
-	deletePermanently := ctx.Query("permanent") == "true"
+	deletePermanently := ctx.Params("permanent") == "true"
 	// except if permanent is true, write the user to the deleted_users table
 	if !deletePermanently {
 		_, err := s.db.Exec("INSERT INTO deleted_users (memberid, username, password, first_name, last_name, permission, stateid, balance) SELECT memberid, username, password, first_name, last_name, permission, stateid, balance FROM users WHERE id = $1; DELETE FROM users WHERE id = $1;", userId)
@@ -169,4 +206,15 @@ func (s *Server) deleteUser(ctx fiber.Ctx) error {
 			"status": "success",
 		})
 	}
+}
+
+func (s *Server) setDealerPercentage(ctx fiber.Ctx) error {
+	percentage := ctx.Params("percentage")
+	_, err := s.db.Exec("UPDATE enviroment SET dealer_percentage = $1", percentage)
+	if err != nil {
+		return err
+	}
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "success",
+	})
 }

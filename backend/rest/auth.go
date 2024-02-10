@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lib/pq"
+	// "github.com/phuslu/log"
 )
 
 func (s *Server) postSignUpHandler(ctx fiber.Ctx) error {
@@ -19,6 +20,14 @@ func (s *Server) postSignUpHandler(ctx fiber.Ctx) error {
 	}
 
 	memberId, ok := form.Value["memberid"]
+	// check that the memberid is present in thr allowed_memberids table
+	// if not, return fiber.ErrBadRequest
+	err = s.db.QueryRow("SELECT memberid FROM allowed_memberids WHERE memberid = $1", memberId[0]).Err()
+	// log.Error().Err(err).Msg("Error reading message")
+
+	if err != nil {
+		return fiber.ErrBadRequest
+	}
 	if !ok {
 		return fiber.ErrBadRequest
 	}
@@ -72,11 +81,6 @@ func (s *Server) postSignInHandler(ctx fiber.Ctx) error {
 		return err
 	}
 
-	memberId, ok := form.Value["memberid"]
-	if !ok {
-		return fiber.ErrBadRequest
-	}
-
 	username, ok := form.Value["username"]
 	if !ok {
 		return fiber.ErrBadRequest
@@ -90,7 +94,7 @@ func (s *Server) postSignInHandler(ctx fiber.Ctx) error {
 	hashedPassword := s.hash(password[0])
 
 	var user models.User
-	err = s.db.QueryRow("SELECT id, memberid, username, first_name, last_name, permission, stateid, balance FROM users WHERE memberid = $1 AND username = $2 AND password = $3", memberId[0], username[0], hashedPassword).
+	err = s.db.QueryRow("SELECT id, memberid, username, first_name, last_name, permission, stateid, balance FROM users WHERE username = $1 AND password = $2", username[0], hashedPassword).
 		Scan(&user.ID, &user.MemberID, &user.Username, &user.FirstName, &user.LastName, pq.Array(&user.Permission), &user.StateID, &user.Balance)
 
 	if err != nil {

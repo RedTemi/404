@@ -85,14 +85,6 @@ function LoginForm() {
                     console.error(error)
                 }}
             >
-                <FormControl isRequired>
-                    <FormLabel>Member ID</FormLabel>
-                    <InputGroup>
-                        <InputLeftAddon>(420)</InputLeftAddon>
-                        <Input autoComplete="off" isInvalid={errors.memberid ? true : false} {...register("memberid", { required: true })} />
-                    </InputGroup>
-                    <FormHelperText>{errors.memberid?.message ? "Invalid input." : ""}</FormHelperText>
-                </FormControl>
                 <Flex py={4} flexDir="row" gap={5} minW="40vw">
                     <FormControl isRequired>
                         <FormLabel>Username</FormLabel>

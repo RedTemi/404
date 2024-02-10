@@ -5,7 +5,6 @@ const requiredString = Joi.string().required();
 
 const RegisterFormSchema = Joi.object({
     memberid: memberID,
-
     first_name: requiredString,
     last_name: requiredString,
     username: requiredString,
@@ -13,8 +12,6 @@ const RegisterFormSchema = Joi.object({
 })
 
 const LoginFormSchema = Joi.object({
-    memberid: memberID,
-
     username: requiredString,
     password: requiredString,
 })

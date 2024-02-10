@@ -31,6 +31,31 @@ export const CurrentRoundInfo = () => {
     )
 }
 
+export const DietRoundInfo = () => {
+    const [isBetsOpen, dealer] = useRouletteGameStore((s) => [s.isBetsOpen, s.dealer])
+    const { user } = useAuthStore()
+
+    const isCurrentUserDealer = user?.ID === dealer?.ID
+
+    return (
+        <Box bg="gray.400" w="full" h="full" p={4} rounded={2}>
+            <HStack>
+                <Box>
+                    <Tag colorScheme={isBetsOpen ? "green" : "red"} mb={2}>
+                        Bets {isBetsOpen ? "Open" : "Closed"}
+                    </Tag>
+                    <Heading size="md">Bet list</Heading>
+                </Box>
+                <Spacer />
+
+                {isCurrentUserDealer && <ToggleBetsButton />}
+            </HStack>
+
+            <BetsList />
+        </Box>
+    )
+}
+
 export const BetsList = () => {
     const roommates = useRoomStateStore((s) => s.roommates)
     const bets = useRouletteGameStore((s) => s.bets)
