@@ -11,7 +11,7 @@ import (
 
 // functions to handle raffle creation, winner selection and ticket purchase
 func (s *Server) createRaffle(ctx fiber.Ctx) error {
-	var raffle models.Raffle
+	var raffle map[string]interface{}
 	json.Unmarshal(ctx.Body(), &raffle)
 	// if there are no unexpired raffles, create a new one
 	_, err := s.db.Exec("DELETE FROM raffles WHERE end_date < NOW()")
@@ -19,7 +19,7 @@ func (s *Server) createRaffle(ctx fiber.Ctx) error {
 		return err
 	}
 
-	_, err = s.db.Exec("INSERT INTO raffles (raffle_name, start_date, end_date, minimum_tickets, ticket_price, raffle_description) VALUES ($1, $2, $3, $4, $5, $6)", raffle.Name, raffle.StartDate, raffle.EndDate, raffle.MinTickets, raffle.Price, raffle.Description)
+	_, err = s.db.Exec("INSERT INTO raffles (raffle_name, start_date, end_date, minimum_tickets, ticket_price, raffle_description) VALUES ($1, $2, $3, $4, $5, $6)", raffle["name"], raffle["start_date"], raffle["end_date"], raffle["minimum_tickets"], raffle["ticket_price"], raffle["raffle_description"])
 	if err != nil {
 		return err
 	}
@@ -52,23 +52,31 @@ func (s *Server) purchaseTicket(ctx fiber.Ctx) error {
 	})
 }
 
-// func (s *Server) getRaffleTickets(ctx fiber.Ctx) error {
-// 	raffleId := ctx.Params("id")
-// 	rows, err := s.db.Query("SELECT * FROM raffle_tickets WHERE raffle_id = $1", raffleId)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	var tickets []models.RaffleTicket
-// 	for rows.Next() {
-// 		var ticket models.RaffleTicket
-// 		rows.Scan(&ticket.ID, &ticket.RaffleID, &ticket.UserID, &ticket.Quantity)
-// 		tickets = append(tickets, ticket)
-// 	}
-// 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-// 		"status":  "success",
-// 		"tickets": tickets,
-// 	})
-// }
+func (s *Server) getRaffleTickets(ctx fiber.Ctx) error {
+	raffleId := ctx.Params("id")
+	// get tickets for the raffle from the participants table
+	rows, err := s.db.Query("SELECT * FROM participants WHERE raffle_id = $1", raffleId)
+	if err != nil {
+		return err
+	}
+	var tickets map[int64]interface{}
+	for rows.Next() {
+		var ticket struct {
+			ID             int
+			RaffleID       int
+			UserID         int
+			TicketQuantity int
+		}
+
+		rows.Scan(&ticket.ID, &ticket.RaffleID, &ticket.UserID, &ticket.TicketQuantity)
+		tickets[int64(ticket.ID)] = ticket
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"tickets": tickets,
+	})
+}
 
 func (s *Server) getCurrentRaffle(ctx fiber.Ctx) error {
 	rows, err := s.db.Query("SELECT * FROM raffles WHERE end_date > NOW() LIMIT 1")

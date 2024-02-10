@@ -98,6 +98,7 @@ func main() {
 			winning_ticket_number INTEGER,
 			minimum_tickets INTEGER NOT NULL,
 			ticket_price INTEGER NOT NULL,
+			ticket_count INTEGER DEFAULT 0,
 			raffle_description TEXT NOT NULL
 		);
 		CREATE OR REPLACE FUNCTION approve_pending_tickets(p_tracking_code VARCHAR(255)) RETURNS VOID AS $$
@@ -163,6 +164,21 @@ func main() {
 			ticket_quantity INTEGER DEFAULT 1,
 			UNIQUE(raffle_id, ticket_number) -- Ensure uniqueness of ticket number within each raffle
 			);
+		
+		-- when a new row is inserted into the participants table, the ticket count of the raflle should be updated
+		CREATE OR REPLACE FUNCTION update_raffle_ticket_count() RETURNS TRIGGER AS $$
+		BEGIN
+			-- Update the ticket count of the raffle
+			UPDATE raffles SET ticket_count = ticket_count + NEW.ticket_quantity WHERE raffle_id = NEW.raffle_id;
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+
+		CREATE TRIGGER update_raffle_ticket_count_trigger
+		AFTER INSERT ON participants
+		FOR EACH ROW
+		EXECUTE PROCEDURE update_raffle_ticket_count();
+		
 			
 		CREATE OR REPLACE FUNCTION purchase_ticket(p_raffle_id INTEGER, p_username VARCHAR(225), quantity INTEGER DEFAULT 1) RETURNS VOID AS $$
 		DECLARE
