@@ -59,7 +59,7 @@ func main() {
 	if *initFlag {
 		log.Info().Msg("Initializing database")
 		_, err = db.Exec(`
-		DROP TABLE IF EXISTS temporary_users, transactions, deleted_users, enviroment, participants,winners, raffles,round_data CASCADE; 
+		DROP TABLE IF EXISTS temporary_users, transactions, deleted_users, enviroment, participants,raffles,winners,round_data CASCADE; 
 		CREATE TABLE IF NOT EXISTS users (
 			id         SERIAL         NOT NULL, 
 			memberid   VARCHAR(255)   NOT NULL, 
@@ -101,6 +101,7 @@ func main() {
 			ticket_count INTEGER DEFAULT 0,
 			raffle_description TEXT NOT NULL
 		);
+		
 		CREATE OR REPLACE FUNCTION approve_pending_tickets(p_tracking_code VARCHAR(255)) RETURNS VOID AS $$
 		DECLARE
 			p_raffle_id INTEGER;
@@ -174,11 +175,12 @@ func main() {
 		END;
 		$$ LANGUAGE plpgsql;
 
-		CREATE TRIGGER update_raffle_ticket_count_trigger
+		CREATE OR REPLACE TRIGGER update_raffle_ticket_count_trigger
 		AFTER INSERT ON participants
 		FOR EACH ROW
 		EXECUTE PROCEDURE update_raffle_ticket_count();
-		
+		INSERT INTO raffles (raffle_name, start_date, end_date, winning_ticket_number, minimum_tickets, ticket_price, ticket_count, raffle_description)
+		VALUES ('Sample Raffle', '2024-02-10', '2024-03-10', NULL, 100, 10, 0, 'This is a sample raffle description.');
 			
 		CREATE OR REPLACE FUNCTION purchase_ticket(p_raffle_id INTEGER, p_username VARCHAR(225), quantity INTEGER DEFAULT 1) RETURNS VOID AS $$
 		DECLARE
@@ -347,19 +349,7 @@ func main() {
 		insert into environment (key, value) values ('dealer_percentage', '1');
 		insert into environment (key, value) values ('points_per_dollar', '1');
 		insert into environment (key, value) values ('max_rooms', '2');
-			
-			-- create a view to get the total number of tickets purchased for a raffle
-			CREATE OR REPLACE VIEW raffle_ticket_count AS
-			SELECT raffle_id, COUNT(*) AS ticket_count
-			FROM participants
-		GROUP BY raffle_id;
 
-		-- create a view to get the total number of tickets purchased for a raffle by a user, this should only show for active raffles
-		CREATE OR REPLACE VIEW user_raffle_ticket_count AS
-		SELECT raffle_id, username, COUNT(*) AS ticket_count
-		FROM participants
-		WHERE raffle_id IN (SELECT raffle_id FROM raffles WHERE end_date >= CURRENT_DATE)
-		GROUP BY raffle_id, username;
 
 		`)
 		if err != nil {

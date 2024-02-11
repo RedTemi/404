@@ -18,6 +18,15 @@ import { joiResolver } from "@hookform/resolvers/joi";
 import { Form, useForm, SubmitHandler, FormState } from "react-hook-form";
 import { FaArrowRight } from "react-icons/fa6";
 
+type FormValues = {
+  name: string,
+  start_date: string,
+  end_date: string,
+  ticket_price: number,
+  minimum_tickets: number,
+  raffle_description: string
+}
+
 function RaffleL() {
   const user = useAuthStore((state) => state.user);
 
@@ -34,73 +43,64 @@ function RaffleL() {
   );
 }
 
-function Raffle() {
+ function Raffle() {
   const token = useAuthStore((state) => state._authToken);
   const {
     register,
     handleSubmit,
-    control,
-    formState: { errors },
-  } = useForm({
-    resolver: joiResolver(RaffleCreateSchema),
-  });
-
+  } = useForm<FormValues>();
+  const onsubmit: SubmitHandler<FormValues> = async(data)=>{
+      console.log(data);
+        try {
+          const response = await fetch(`${REST_URL}/api/raffle/create`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(data),
+          });
+  
+          if (!response.ok) {
+            throw new Error("Network response was not ok");
+          }
+  
+          const responseData = await response.json();
+  
+          toast({
+            title: "Raffle created.",
+            description: "We've created your raffle for you.",
+            status: "success",
+            duration: 9000,
+            isClosable: true,
+          });
+  
+          console.log(responseData); // Log response data if needed
+        } catch (error:any) {
+          toast({
+            title: "An error occurred.",
+            description: `Unable to create a raffle: ${error.message}`,
+            status: "error",
+            duration: 9000,
+            isClosable: true,
+          });
+        }
+      
+  }
   const toast = useToast();
   return (
-    <Form
-      control={control}
-     
-      onSubmitCapture={handleSubmit(
-        async ({ data }) => {
-          try {
-            const response = await fetch(`${REST_URL}/api/raffle/create`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify(data),
-            });
-    
-            if (!response.ok) {
-              throw new Error("Network response was not ok");
-            }
-    
-            const responseData = await response.json();
-    
-            toast({
-              title: "Raffle created.",
-              description: "We've created your raffle for you.",
-              status: "success",
-              duration: 9000,
-              isClosable: true,
-            });
-    
-            console.log(responseData); // Log response data if needed
-          } catch (error:any) {
-            toast({
-              title: "An error occurred.",
-              description: `Unable to create a raffle: ${error.message}`,
-              status: "error",
-              duration: 9000,
-              isClosable: true,
-            });
-          }
-        }
-      )}
-    >
+    <form
+        onSubmit={handleSubmit(onsubmit)}
+       >
       <FormControl isRequired>
         <FormLabel>Raffle Name</FormLabel>
         <InputGroup>
           <Input
             autoComplete="off"
-            isInvalid={errors.name ? true : false}
             {...register("name", { required: true })}
           />
         </InputGroup>
-        <FormHelperText>
-          {errors.name?.message ? "Invalid input." : ""}
-        </FormHelperText>
+    
       </FormControl>
       <Flex py={4} flexDir="row" gap={5} minW="40vw">
         <FormControl isRequired>
@@ -108,24 +108,18 @@ function Raffle() {
           <Input
             type={"date"}
             autoComplete="off"
-            aria-invalid={errors.start_date ? true : false}
             {...register("start_date", { required: true })}
           />
-          <FormHelperText>
-            {errors.start_date?.message ? "Invalid input." : ""}
-          </FormHelperText>
         </FormControl>
         <FormControl isRequired>
           <FormLabel>End Date</FormLabel>
           <Input
             type={"date"}
             autoComplete="off"
-            aria-invalid={errors.end_date ? true : false}
+          
             {...register("end_date", { required: true })}
           />
-          <FormHelperText>
-            {errors.end_date?.message ? "Invalid input." : ""}
-          </FormHelperText>
+        
         </FormControl>
       </Flex>
       <Flex py={4} flexDir="row" gap={5} minW="40vw">
@@ -134,19 +128,15 @@ function Raffle() {
           <Input
             type={"number"}
             autoComplete="off"
-            aria-invalid={errors.price ? true : false}
+      
             {...register("ticket_price", { required: true })}
           />
-          <FormHelperText>
-            {errors.ticket_price?.message ? "Invalid input." : ""}
-          </FormHelperText>
         </FormControl>
         <FormControl isRequired>
           <FormLabel>Minimum Tickets</FormLabel>
           <Input
             type={"number"}
             autoComplete="off"
-            aria-invalid={errors.minimum_tickets ? true : false}
             {...register("minimum_tickets", { required: true })}
           />
         </FormControl>
@@ -155,12 +145,9 @@ function Raffle() {
         <FormLabel>Raffle Description</FormLabel>
         <Input
           autoComplete="off"
-          isInvalid={errors.raffle_description ? true : false}
           {...register("raffle_description", { required: true })}
         />
-        <FormHelperText>
-          {errors.raffle_description?.message ? "Invalid input." : ""}
-        </FormHelperText>
+     
       </FormControl>
       <Button
         type="submit"
@@ -170,7 +157,7 @@ function Raffle() {
       >
         Create Raffle
       </Button>
-    </Form>
+    </form>
   );
 }
 

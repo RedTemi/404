@@ -79,14 +79,13 @@ func (s *Server) getRaffleTickets(ctx fiber.Ctx) error {
 }
 
 func (s *Server) getCurrentRaffle(ctx fiber.Ctx) error {
-	rows, err := s.db.Query("SELECT * FROM raffles WHERE end_date > NOW() LIMIT 1")
+	var raffle models.Raffle
+	err := s.db.QueryRow("SELECT raffle_id, raffle_name, start_date, end_date, minimum_tickets, ticket_price, ticket_count, raffle_description FROM raffles WHERE end_date > NOW() LIMIT 1").
+		Scan(&raffle.ID, &raffle.Name, &raffle.StartDate, &raffle.EndDate, &raffle.MinTickets, &raffle.Price, &raffle.TicketCount, &raffle.Description)
 	if err != nil {
 		return err
 	}
-	var raffle models.Raffle
-	for rows.Next() {
-		rows.Scan(&raffle.ID, &raffle.Name, &raffle.StartDate, &raffle.EndDate, &raffle.MinTickets, &raffle.Price, &raffle.Description)
-	}
+
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
 		"raffle": raffle,

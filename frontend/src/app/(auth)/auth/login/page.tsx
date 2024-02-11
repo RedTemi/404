@@ -16,7 +16,7 @@ import { useState } from "react"
 import { Form, useForm } from "react-hook-form"
 import { FaExternalLinkAlt } from "react-icons/fa"
 import { FaArrowRight } from "react-icons/fa6"
-
+import { ENVIRONMENT } from "@/util/constants"
 function LoginPage() {
     const user = useAuthStore((state) => state.user)
 
@@ -45,7 +45,7 @@ function LoginPage() {
 }
 
 function LoginForm() {
-    const passedTurnstile = useSecureStore((state) => state.passed)
+    const passedTurnstile = useSecureStore((state) => state.passed) || ENVIRONMENT == 'dev'
 
     const setAuthToken = useAuthStore((state) => state.setAuthToken)
 

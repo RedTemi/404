@@ -8,4 +8,5 @@ type Raffle struct {
 	EndDate     string
 	MinTickets  int64
 	Description string
+	TicketCount int64
 }

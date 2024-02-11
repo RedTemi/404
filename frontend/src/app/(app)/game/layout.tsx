@@ -6,9 +6,8 @@ import { useRoomStateStore } from "@/stores/room"
 import { PlayerInviteModal } from "./components/dealer/PlayerInviteModal"
 import useBeforeUnload from "@/hooks/useBeforeUnload"
 import { RouletteProvider } from "@/context/RouletteContext"
-import { use, useEffect } from "react"
+import { useEffect } from "react"
 import { redirect } from "next/navigation"
-import {useRouter } from "next/router"
 import { useWebSocketContext } from "@/components/provider/websocket"
 import { isUserDealer } from "@/util/roadblocks"
 import { useAuthStore } from "@/stores/auth"
@@ -16,7 +15,7 @@ import { useAuthStore } from "@/stores/auth"
 function GameLayout({ children }: { children: React.ReactNode }) {
     const roomId = useRoomStateStore((state) => state.roomId)
     const { sendMessage } = useWebSocketContext()
-    // const router = useRouter()
+ 
     const user = useAuthStore((state) => state.user)
     
     useBeforeUnload(roomId != null, "Are you sure you want to leave this game?")

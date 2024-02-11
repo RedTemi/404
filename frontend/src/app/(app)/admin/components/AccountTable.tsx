@@ -161,7 +161,6 @@ function AccountViewerRow({ user }: { user: User }) {
 function EditUser({ user, token }: { user: User; token: string }) {
   return (
     <>
-      {" "}
       <Popover>
         <PopoverTrigger>
           <IconButton
